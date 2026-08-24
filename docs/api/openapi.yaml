@@ -1,0 +1,1377 @@
+openapi: 3.1.0
+info:
+  title: Library Management System API
+  version: 1.5.0-circulation-web
+  description: Versioned contract for authentication, RBAC, catalog, inventory, account management, transactional circulation, notifications, dashboards, and reports.
+  license:
+    name: Unlicensed academic project
+    identifier: LicenseRef-Unlicensed
+servers:
+  - url: http://127.0.0.1:8000/api/v1
+    description: Local Laravel development server
+tags:
+  - name: System
+    description: Health and authorization diagnostics.
+  - name: Authentication
+    description: Account registration, sessions, and password management.
+  - name: Catalog
+    description: Categories, book metadata, cover files, and public availability.
+  - name: Inventory
+    description: Physical copies and their operational condition/status.
+  - name: Administration
+    description: Admin-only Member and Admin account management.
+  - name: Borrowing
+    description: Member borrow requests and Admin approval/rejection.
+  - name: Circulation
+    description: Transactional physical-copy checkout, loans, overdue status, and returns.
+  - name: Operations
+    description: Notifications, dashboard statistics, reports, and exports.
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Check API availability
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API is available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '429':
+          description: Too many requests
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a Library User
+      description: The server always assigns the `user` role; client-supplied role and status values are ignored.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Log in and issue a Sanctum bearer token
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          description: Too many login attempts
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Return the authenticated account
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current account
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message, data]
+                properties:
+                  success: { type: boolean, const: true }
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/User' }
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Revoke the current bearer token
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token revoked
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/password:
+    put:
+      tags: [Authentication]
+      summary: Change the current account password
+      description: A successful change revokes every bearer token, requiring a new login.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password }
+                password: { type: string, format: password, minLength: 8 }
+                password_confirmation: { type: string, format: password, minLength: 8 }
+      responses:
+        '200':
+          description: Password changed and tokens revoked
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /admin/health:
+    get:
+      tags: [System]
+      summary: Verify Admin RBAC
+      operationId: getAdminHealth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Active Admin authorized
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /categories:
+    get:
+      tags: [Catalog]
+      summary: List visible categories
+      operationId: listCategories
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: include_archived, in: query, description: Admin only, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Category list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [Catalog]
+      summary: Create a category
+      operationId: createCategory
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '201': { description: Category created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /categories/{category}:
+    patch:
+      tags: [Catalog]
+      summary: Update a category
+      operationId: updateCategory
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CategoryId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '200': { description: Category updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /categories/{category}/archive:
+    patch:
+      tags: [Catalog]
+      summary: Archive or restore a category
+      operationId: setCategoryActive
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CategoryId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties: { is_active: { type: boolean } }
+      responses:
+        '200': { description: Category archive state updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /books:
+    get:
+      tags: [Catalog]
+      summary: Search and paginate visible books
+      operationId: listBooks
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: category_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: availability, in: query, schema: { type: string, enum: [available, limited, unavailable] } }
+        - { name: sort, in: query, schema: { type: string, enum: [title, author, publication_year, created_at], default: title } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+        - { name: include_archived, in: query, description: Admin only, schema: { type: boolean } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Paginated book list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Catalog]
+      summary: Create a book and optional initial copies
+      operationId: createBook
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookInput' }
+      responses:
+        '201': { description: Book created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /books/{book}:
+    get:
+      tags: [Catalog]
+      summary: Get book details
+      operationId: getBook
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      responses:
+        '200':
+          description: Book details; Admin responses include physical copies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catalog]
+      summary: Replace editable book metadata
+      operationId: replaceBook
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookInput' }
+      responses:
+        '200': { description: Book updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    patch:
+      tags: [Catalog]
+      summary: Partially update book metadata
+      operationId: updateBook
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookInput' }
+      responses:
+        '200': { description: Book updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /books/{book}/archive:
+    patch:
+      tags: [Catalog]
+      summary: Archive or restore a book
+      operationId: setBookActive
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties: { is_active: { type: boolean } }
+      responses:
+        '200': { description: Book archive state updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /books/{book}/cover:
+    post:
+      tags: [Catalog]
+      summary: Replace a book cover
+      operationId: replaceBookCover
+      description: Accepts JPG, JPEG, PNG, or WEBP up to 2 MB and deletes a superseded file after a successful database update.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [cover]
+              properties:
+                cover: { type: string, format: binary }
+      responses:
+        '200': { description: Cover replaced }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /books/{book}/copies:
+    get:
+      tags: [Inventory]
+      summary: List physical copies of a book
+      operationId: listBookCopies
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+        - { name: status, in: query, schema: { type: string, enum: [available, borrowed, lost, damaged, archived] } }
+      responses:
+        '200': { description: Copy list }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Inventory]
+      summary: Add a physical copy
+      operationId: createBookCopy
+      description: The server generates an accession number when it is omitted and always creates the copy as available.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BookId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookCopyInput' }
+      responses:
+        '201': { description: Copy created }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /book-copies/{copy}:
+    patch:
+      tags: [Inventory]
+      summary: Update a physical copy
+      operationId: updateBookCopy
+      description: Borrowed status can only be released through the later return workflow.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CopyId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookCopyUpdate' }
+      responses:
+        '200': { description: Copy updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /book-copies/{copy}/archive:
+    patch:
+      tags: [Inventory]
+      summary: Archive or restore a physical copy
+      operationId: setBookCopyArchived
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CopyId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [archived]
+              properties: { archived: { type: boolean } }
+      responses:
+        '200': { description: Copy archive state updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/users:
+    get:
+      tags: [Administration]
+      summary: Search and paginate accounts
+      operationId: listAdminUsers
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: role, in: query, schema: { type: string, enum: [admin, user] } }
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive, pending] } }
+        - { name: sort, in: query, schema: { type: string, enum: [name, email, member_id, created_at, last_login_at], default: created_at } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Paginated account list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Administration]
+      summary: Create a Member or Admin account
+      operationId: createAdminUser
+      description: The temporary password is hashed and the account must replace it at first login. Admin accounts cannot have a Member ID or pending status.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserInput' }
+      responses:
+        '201': { description: Account created }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/users/{user}:
+    get:
+      tags: [Administration]
+      summary: Get account details and circulation counts
+      operationId: getAdminUser
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Administration]
+      summary: Update account profile fields
+      operationId: updateAdminUser
+      description: Role and status are excluded from this profile mutation.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminUserUpdate' }
+      responses:
+        '200': { description: Account updated }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/users/{user}/status:
+    patch:
+      tags: [Administration]
+      summary: Approve, activate, or deactivate an account
+      operationId: updateAdminUserStatus
+      description: An Admin cannot change their own status. Moving an account to pending or inactive revokes all bearer tokens.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/UserId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, inactive, pending] }
+      responses:
+        '200': { description: Account status updated }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /borrow-requests:
+    get:
+      tags: [Borrowing]
+      summary: List the authenticated Member's requests
+      operationId: listMyBorrowRequests
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected, cancelled] } }
+        - { name: book_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: sort, in: query, schema: { type: string, enum: [requested_at, reviewed_at, created_at], default: requested_at } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Paginated request list scoped to the authenticated Member
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BorrowRequestListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [Borrowing]
+      summary: Submit a borrow request
+      operationId: createBorrowRequest
+      description: Requires an active catalog book with an available copy and no existing pending/approved request by this Member for the same book.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [book_id]
+              properties:
+                book_id: { type: integer, format: int64 }
+      responses:
+        '201': { description: Borrow request submitted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /borrow-requests/{borrowRequest}:
+    get:
+      tags: [Borrowing]
+      summary: View an owned borrow request
+      operationId: getMyBorrowRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BorrowRequestId' }
+      responses:
+        '200':
+          description: Borrow request details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BorrowRequestResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /borrow-requests/{borrowRequest}/cancel:
+    patch:
+      tags: [Borrowing]
+      summary: Cancel an owned pending borrow request
+      operationId: cancelBorrowRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BorrowRequestId' }
+      responses:
+        '200': { description: Request cancelled }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /admin/borrow-requests:
+    get:
+      tags: [Borrowing]
+      summary: Search and paginate all borrow requests
+      operationId: listAdminBorrowRequests
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 150 } }
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected, cancelled] } }
+        - { name: user_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: book_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: sort, in: query, schema: { type: string, enum: [requested_at, reviewed_at, created_at], default: requested_at } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: Paginated request list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BorrowRequestListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/borrow-requests/{borrowRequest}:
+    get:
+      tags: [Borrowing]
+      summary: View any borrow request
+      operationId: getAdminBorrowRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BorrowRequestId' }
+      responses:
+        '200':
+          description: Borrow request details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BorrowRequestResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/borrow-requests/{borrowRequest}/approve:
+    patch:
+      tags: [Borrowing]
+      summary: Approve a pending borrow request
+      operationId: approveBorrowRequest
+      description: Locks an available physical copy, approves the request, creates one loan, updates inventory, and notifies the Member in one transaction.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BorrowRequestId' }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                book_copy_id: { type: [integer, 'null'], format: int64, description: Optional eligible copy; the API selects one when omitted. }
+                due_at: { type: [string, 'null'], format: date-time, description: Optional future due date; the configured loan period is used when omitted. }
+                admin_notes: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { description: Request approved and Member notified }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/borrow-requests/{borrowRequest}/reject:
+    patch:
+      tags: [Borrowing]
+      summary: Reject a pending borrow request
+      operationId: rejectBorrowRequest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/BorrowRequestId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rejection_reason]
+              properties:
+                rejection_reason: { type: string, maxLength: 2000 }
+                admin_notes: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { description: Request rejected and Member notified }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /loans:
+    get:
+      tags: [Circulation]
+      summary: List the authenticated Member's loans
+      operationId: listMyLoans
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [borrowed, overdue, returned] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Paginated Member loan history, content: { application/json: { schema: { $ref: '#/components/schemas/LoanListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /loans/{loan}:
+    get:
+      tags: [Circulation]
+      summary: View an owned loan
+      operationId: getMyLoan
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/LoanId' }]
+      responses:
+        '200': { description: Loan details, content: { application/json: { schema: { $ref: '#/components/schemas/LoanResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/loans:
+    get:
+      tags: [Circulation]
+      summary: Search and filter all loans
+      operationId: listAdminLoans
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: status, in: query, schema: { type: string, enum: [borrowed, overdue, returned] } }
+        - { name: user_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: book_id, in: query, schema: { type: integer, format: int64 } }
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { description: Paginated loan list, content: { application/json: { schema: { $ref: '#/components/schemas/LoanListResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/loans/{loan}:
+    get:
+      tags: [Circulation]
+      summary: View any loan
+      operationId: getAdminLoan
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/LoanId' }]
+      responses:
+        '200': { description: Loan details, content: { application/json: { schema: { $ref: '#/components/schemas/LoanResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/loans/{loan}/return:
+    post:
+      tags: [Circulation]
+      summary: Record an atomic book return
+      operationId: returnLoan
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/LoanId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                returned_at: { type: [string, 'null'], format: date-time }
+                return_condition: { type: [string, 'null'], enum: [good, damaged, null], default: good }
+                notes: { type: [string, 'null'], maxLength: 2000 }
+      responses:
+        '200': { description: Return recorded and copy inventory updated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /notifications:
+    get:
+      tags: [Operations]
+      summary: List the authenticated account's notifications
+      operationId: listNotifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Paginated owner-scoped notifications, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationListResponse' } } } }
+  /notifications/{notification}/read:
+    post:
+      tags: [Operations]
+      summary: Mark an owned notification read
+      operationId: readNotification
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/NotificationId' }]
+      responses:
+        '200': { description: Notification marked read, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationResponse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /notifications/read-all:
+    post:
+      tags: [Operations]
+      summary: Mark all owned notifications read
+      operationId: readAllNotifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Notifications marked read }
+  /admin/dashboard:
+    get:
+      tags: [Operations]
+      summary: Get live Admin dashboard aggregates and recent activity
+      operationId: getAdminDashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Dashboard data, content: { application/json: { schema: { $ref: '#/components/schemas/DashboardResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reports/borrowings:
+    get:
+      tags: [Operations]
+      summary: Get live borrowing report aggregates
+      operationId: getBorrowingReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Borrowing report, content: { application/json: { schema: { $ref: '#/components/schemas/BorrowingReportResponse' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/reports/borrowings/export:
+    get:
+      tags: [Operations]
+      summary: Export the borrowing report as CSV
+      operationId: exportBorrowingReport
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: date_from, in: query, schema: { type: string, format: date } }
+        - { name: date_to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: UTF-8 CSV file
+          content:
+            text/csv:
+              schema: { type: string }
+components:
+  parameters:
+    CategoryId:
+      name: category
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BookId:
+      name: book
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    CopyId:
+      name: copy
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    UserId:
+      name: user
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    BorrowRequestId:
+      name: borrowRequest
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    LoanId:
+      name: loan
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    NotificationId:
+      name: notification
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum token
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, member_id, email, password, password_confirmation]
+      properties:
+        name: { type: string, maxLength: 150, example: Juan Dela Cruz }
+        member_id: { type: string, maxLength: 50, example: MEM-10001 }
+        email: { type: string, format: email, example: juan@example.com }
+        password: { type: string, format: password, minLength: 8 }
+        password_confirmation: { type: string, format: password, minLength: 8 }
+        device_name: { type: string, maxLength: 100, example: android-app }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        device_name: { type: string, maxLength: 100, default: web-admin }
+    User:
+      type: object
+      required: [id, name, email, role, status, must_change_password, borrow_requests_count, loans_count, active_loans_count]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        member_id: { type: [string, 'null'] }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, user] }
+        status: { type: string, enum: [active, inactive, pending] }
+        must_change_password: { type: boolean }
+        borrow_requests_count: { type: integer, minimum: 0 }
+        loans_count: { type: integer, minimum: 0 }
+        active_loans_count: { type: integer, minimum: 0 }
+        created_by:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, name, email]
+              properties:
+                id: { type: integer, format: int64 }
+                name: { type: string }
+                email: { type: string, format: email }
+        email_verified_at: { type: [string, 'null'], format: date-time }
+        last_login_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    AdminUserInput:
+      type: object
+      required: [name, email, role, password, password_confirmation]
+      properties:
+        name: { type: string, maxLength: 150 }
+        member_id:
+          type: [string, 'null']
+          maxLength: 50
+          description: Required for the user role and prohibited for the admin role.
+        email: { type: string, format: email, maxLength: 255 }
+        role: { type: string, enum: [admin, user] }
+        status: { type: string, enum: [active, inactive, pending], default: active }
+        password: { type: string, format: password, minLength: 8 }
+        password_confirmation: { type: string, format: password, minLength: 8 }
+    AdminUserUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, maxLength: 150 }
+        member_id:
+          type: [string, 'null']
+          maxLength: 50
+          description: Required when supplied for a Member and prohibited for an Admin.
+        email: { type: string, format: email, maxLength: 255 }
+    UserResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/User' }
+    UserListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/User' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+    BorrowRequestMember:
+      type: object
+      required: [id, name, email, role, status]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        member_id: { type: [string, 'null'] }
+        email: { type: string, format: email }
+        role: { type: string, enum: [admin, user] }
+        status: { type: string, enum: [active, inactive, pending] }
+    BorrowRequestBook:
+      type: object
+      required: [id, title, author, total_copies, available_copies, availability_status, is_active]
+      properties:
+        id: { type: integer, format: int64 }
+        isbn: { type: [string, 'null'] }
+        title: { type: string }
+        author: { type: string }
+        cover_url: { type: [string, 'null'] }
+        category: { type: [string, 'null'] }
+        total_copies: { type: integer, minimum: 0 }
+        available_copies: { type: integer, minimum: 0 }
+        availability_status: { type: string, enum: [available, limited, unavailable] }
+        is_active: { type: boolean }
+    BorrowRequestReviewer:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        email: { type: string, format: email }
+    BorrowRequest:
+      type: object
+      required: [id, reference, status, user, book, requested_at]
+      properties:
+        id: { type: integer, format: int64 }
+        reference: { type: string, example: REQ-000123 }
+        status: { type: string, enum: [pending, approved, rejected, cancelled] }
+        user: { $ref: '#/components/schemas/BorrowRequestMember' }
+        book: { $ref: '#/components/schemas/BorrowRequestBook' }
+        reviewed_by:
+          oneOf:
+            - type: 'null'
+            - { $ref: '#/components/schemas/BorrowRequestReviewer' }
+        loan:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, reference, status, book_copy_id, accession_number, borrowed_at, due_at]
+              properties:
+                id: { type: integer, format: int64 }
+                reference: { type: string }
+                status: { type: string, enum: [borrowed, overdue, returned] }
+                book_copy_id: { type: integer, format: int64 }
+                accession_number: { type: string }
+                borrowed_at: { type: string, format: date-time }
+                due_at: { type: string, format: date-time }
+        rejection_reason: { type: [string, 'null'] }
+        admin_notes: { type: [string, 'null'] }
+        requested_at: { type: string, format: date-time }
+        reviewed_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    Loan:
+      type: object
+      required: [id, reference, status, borrow_request_id, user, book_copy, borrowed_at, due_at]
+      properties:
+        id: { type: integer, format: int64 }
+        reference: { type: string, example: LOAN-000123 }
+        status: { type: string, enum: [borrowed, overdue, returned] }
+        borrow_request_id: { type: integer, format: int64 }
+        user: { $ref: '#/components/schemas/LoanMember' }
+        book_copy:
+          type: object
+          required: [id, accession_number, status, book]
+          properties:
+            id: { type: integer, format: int64 }
+            accession_number: { type: string }
+            barcode: { type: [string, 'null'] }
+            status: { type: string }
+            book: { $ref: '#/components/schemas/LoanBook' }
+        borrowed_at: { type: string, format: date-time }
+        due_at: { type: string, format: date-time }
+        returned_at: { type: [string, 'null'], format: date-time }
+        days_remaining: { type: [integer, 'null'] }
+        is_due_soon: { type: boolean }
+        return_condition: { type: [string, 'null'], enum: [good, damaged, null] }
+        notes: { type: [string, 'null'] }
+    LoanMember:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        member_id: { type: [string, 'null'] }
+        email: { type: string, format: email }
+    LoanBook:
+      type: object
+      required: [id, title, author]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        author: { type: string }
+        isbn: { type: [string, 'null'] }
+        category: { type: [string, 'null'] }
+        cover_url: { type: [string, 'null'] }
+    LoanResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/Loan' }
+    LoanListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Loan' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+    Notification:
+      type: object
+      required: [id, type, title, message, data, is_read, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        data: { type: object, additionalProperties: true }
+        is_read: { type: boolean }
+        read_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+    NotificationResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/Notification' }
+    NotificationListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+        meta:
+          allOf:
+            - { $ref: '#/components/schemas/PaginationMeta' }
+            - type: object
+              required: [unread_count]
+              properties:
+                unread_count: { type: integer, minimum: 0 }
+    MonthlyActivity:
+      type: object
+      required: [month, year, borrowed, returned]
+      properties:
+        month: { type: string }
+        year: { type: integer }
+        borrowed: { type: integer, minimum: 0 }
+        returned: { type: integer, minimum: 0 }
+    PopularBook:
+      type: object
+      required: [id, title, author, borrow_count]
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        author: { type: string }
+        cover_url: { type: [string, 'null'] }
+        borrow_count: { type: integer, minimum: 0 }
+    DashboardResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [summary, monthly_activity, popular_books, recent_requests, current_loans]
+          properties:
+            summary:
+              type: object
+              additionalProperties: { type: integer, minimum: 0 }
+            monthly_activity: { type: array, items: { $ref: '#/components/schemas/MonthlyActivity' } }
+            popular_books: { type: array, items: { $ref: '#/components/schemas/PopularBook' } }
+            recent_requests: { type: array, items: { $ref: '#/components/schemas/BorrowRequest' } }
+            current_loans: { type: array, items: { $ref: '#/components/schemas/Loan' } }
+    BorrowingReportResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [period, summary, monthly_activity, category_distribution, popular_books]
+          properties:
+            period:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+            summary: { type: object, additionalProperties: true }
+            monthly_activity: { type: array, items: { $ref: '#/components/schemas/MonthlyActivity' } }
+            category_distribution:
+              type: array
+              items:
+                type: object
+                required: [name, value]
+                properties:
+                  name: { type: string }
+                  value: { type: integer, minimum: 0 }
+            popular_books: { type: array, items: { $ref: '#/components/schemas/PopularBook' } }
+    BorrowRequestResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/BorrowRequest' }
+    BorrowRequestListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/BorrowRequest' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+    Category:
+      type: object
+      required: [id, name, books_count, is_active]
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string, maxLength: 100 }
+        description: { type: [string, 'null'] }
+        books_count: { type: integer, minimum: 0 }
+        is_active: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 100 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+    BookCopy:
+      type: object
+      required: [id, book_id, accession_number, status]
+      properties:
+        id: { type: integer, format: int64 }
+        book_id: { type: integer, format: int64 }
+        accession_number: { type: string }
+        barcode: { type: [string, 'null'] }
+        status: { type: string, enum: [available, borrowed, lost, damaged, archived] }
+        condition_notes: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    BookCopyInput:
+      type: object
+      properties:
+        accession_number: { type: [string, 'null'], maxLength: 80 }
+        barcode: { type: [string, 'null'], maxLength: 100 }
+        condition_notes: { type: [string, 'null'], maxLength: 2000 }
+    BookCopyUpdate:
+      type: object
+      properties:
+        accession_number: { type: string, maxLength: 80 }
+        barcode: { type: [string, 'null'], maxLength: 100 }
+        status: { type: string, enum: [available, lost, damaged] }
+        condition_notes: { type: [string, 'null'], maxLength: 2000 }
+    Book:
+      type: object
+      required: [id, title, author, category, total_copies, available_copies, availability_status, is_active]
+      properties:
+        id: { type: integer, format: int64 }
+        isbn: { type: [string, 'null'], maxLength: 20 }
+        title: { type: string }
+        author: { type: string }
+        publisher: { type: [string, 'null'] }
+        publication_year: { type: [integer, 'null'] }
+        category: { $ref: '#/components/schemas/Category' }
+        description: { type: [string, 'null'] }
+        cover_url: { type: [string, 'null'] }
+        total_copies: { type: integer, minimum: 0 }
+        available_copies: { type: integer, minimum: 0 }
+        availability_status: { type: string, enum: [available, limited, unavailable] }
+        is_active: { type: boolean }
+        copies:
+          type: array
+          description: Present on Admin detail responses.
+          items: { $ref: '#/components/schemas/BookCopy' }
+        created_at: { type: [string, 'null'], format: date-time }
+        updated_at: { type: [string, 'null'], format: date-time }
+    BookInput:
+      type: object
+      required: [category_id, title, author]
+      properties:
+        category_id: { type: integer, format: int64 }
+        isbn: { type: [string, 'null'], maxLength: 20 }
+        title: { type: string, maxLength: 255 }
+        author: { type: string, maxLength: 255 }
+        publisher: { type: [string, 'null'], maxLength: 255 }
+        publication_year: { type: [integer, 'null'], minimum: 1000 }
+        description: { type: [string, 'null'], maxLength: 10000 }
+        initial_copies: { type: integer, minimum: 0, maximum: 100, default: 0 }
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page: { type: integer }
+        from: { type: [integer, 'null'] }
+        last_page: { type: integer }
+        per_page: { type: integer }
+        to: { type: [integer, 'null'] }
+        total: { type: integer }
+    CategoryListResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+    BookResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/Book' }
+    BookListResponse:
+      type: object
+      required: [success, message, data, meta]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Book' }
+        meta: { $ref: '#/components/schemas/PaginationMeta' }
+    AuthResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [user, token, token_type]
+          properties:
+            user: { $ref: '#/components/schemas/User' }
+            token: { type: string }
+            token_type: { type: string, const: Bearer }
+    HealthResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data:
+          type: object
+          required: [service, api_version, status, timestamp]
+          properties:
+            service: { type: string }
+            api_version: { type: string, const: v1 }
+            status: { type: string, const: ok }
+            timestamp: { type: string, format: date-time }
+    ErrorResponse:
+      type: object
+      required: [success, message, errors]
+      properties:
+        success: { type: boolean, const: false }
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties: true
+  responses:
+    Unauthenticated:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Account or role is not allowed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ValidationError:
+      description: Submitted data failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: The requested mutation conflicts with current domain state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
