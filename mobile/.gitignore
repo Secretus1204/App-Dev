@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+
+# Expo and generated output
+.expo/
+.expo-user/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build output
+.kotlin/
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/.kotlin/
+android/local.properties
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro and debug logs
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Local environment files
+.env
+.env*.local
+
+# OS/editor and TypeScript
+.DS_Store
+*.pem
+*.tsbuildinfo
