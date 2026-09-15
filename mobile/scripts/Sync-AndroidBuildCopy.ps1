@@ -13,6 +13,8 @@ $ErrorActionPreference = 'Stop'
 
 $sourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path.TrimEnd('\')
 $destinationRoot = [System.IO.Path]::GetFullPath($BuildRoot).TrimEnd('\')
+$sourceMobileRoot = Join-Path $sourceRoot 'mobile'
+$destinationMobileRoot = Join-Path $destinationRoot 'mobile'
 
 if ([string]::Equals($sourceRoot, $destinationRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw 'The Android build copy cannot be the same folder as the source project.'
@@ -38,18 +40,26 @@ if (Test-Path -LiteralPath $destinationRoot) {
 }
 
 $excludedDirectories = @(
-    'node_modules',
-    '.cxx',
-    'build',
-    '.gradle',
-    'dist',
-    '.expo',
-    '.idea',
-    '.npm-cache'
+    (Join-Path $sourceMobileRoot 'node_modules'),
+    (Join-Path $sourceMobileRoot '.cxx'),
+    (Join-Path $sourceMobileRoot 'dist'),
+    (Join-Path $sourceMobileRoot '.expo'),
+    (Join-Path $sourceMobileRoot '.idea'),
+    (Join-Path $sourceMobileRoot '.npm-cache'),
+    (Join-Path $sourceMobileRoot 'android\.gradle'),
+    (Join-Path $sourceMobileRoot 'android\.cxx'),
+    (Join-Path $sourceMobileRoot 'android\.idea'),
+    (Join-Path $sourceMobileRoot 'android\.kotlin'),
+    (Join-Path $sourceMobileRoot 'android\build'),
+    (Join-Path $sourceMobileRoot 'android\app\.cxx'),
+    (Join-Path $sourceMobileRoot 'android\app\build')
+)
+$excludedFiles = @(
+    (Join-Path $sourceMobileRoot 'android\local.properties')
 )
 
-Write-Host "Syncing source project to $destinationRoot"
-& robocopy $sourceRoot $destinationRoot /E /COPY:DAT /DCOPY:DAT /R:2 /W:2 /XD $excludedDirectories | Out-Host
+Write-Host "Syncing mobile source to $destinationMobileRoot"
+& robocopy $sourceMobileRoot $destinationMobileRoot /E /COPY:DAT /DCOPY:DAT /R:2 /W:2 /XD $excludedDirectories /XF $excludedFiles | Out-Host
 $robocopyExitCode = $LASTEXITCODE
 
 if ($robocopyExitCode -gt 7) {
@@ -59,9 +69,7 @@ if ($robocopyExitCode -gt 7) {
 Write-Host "Source sync complete (robocopy exit code $robocopyExitCode)."
 
 if ($PrepareAndroid) {
-    $mobileRoot = Join-Path $destinationRoot 'mobile'
-
-    Push-Location $mobileRoot
+    Push-Location $destinationMobileRoot
     try {
         Write-Host 'Installing the copied mobile dependencies...'
         & npm.cmd ci
@@ -72,5 +80,5 @@ if ($PrepareAndroid) {
         Pop-Location
     }
 
-    Write-Host "Android build copy is ready: $(Join-Path $mobileRoot 'android')"
+    Write-Host "Android build copy is ready: $(Join-Path $destinationMobileRoot 'android')"
 }
