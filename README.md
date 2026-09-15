@@ -50,6 +50,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Verify-Project
 
 See [docs/release/PHASE_8_UAT_AND_STAGING.md](docs/release/PHASE_8_UAT_AND_STAGING.md) for staging smoke tests, backup/restore rehearsal rules, and the acceptance-signoff record. Native Android validation uses the short-path Android build copy described in `mobile/README.md`.
 
+For a Railway-hosted staging deployment of this monorepo, follow [docs/release/RAILWAY_STAGING_DEPLOYMENT.md](docs/release/RAILWAY_STAGING_DEPLOYMENT.md).
+
 Before Phase 9, follow [docs/release/STAGING_PREREQUISITES.md](docs/release/STAGING_PREREQUISITES.md) to create an isolated staging environment, protect its configuration, rehearse the backup/restore path, and validate the physical Android build.
 
 Member and Librarian guides are in `docs/guides/`. For local/staging demonstration data only, run `php artisan db:seed --class=DemoCatalogSeeder` from `backend/`.
