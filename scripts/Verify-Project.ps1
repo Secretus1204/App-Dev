@@ -44,7 +44,21 @@ if ($InstallDependencies) {
 
 Invoke-ProjectCommand -WorkingDirectory $backend -Command '.\vendor\bin\pint.bat' -Arguments @('--test')
 Invoke-ProjectCommand -WorkingDirectory $backend -Command 'php' -Arguments @('artisan', 'test', '--compact')
-Invoke-ProjectCommand -WorkingDirectory $backend -Command 'php' -Arguments @('artisan', 'schedule:list')
+
+# `withoutOverlapping()` uses Laravel's cache lock when the scheduler is
+# inspected. Use the in-memory cache only for this static registration check so
+# the verification script remains runnable when the local MySQL service is off.
+$previousCacheStore = $env:CACHE_STORE
+$env:CACHE_STORE = 'array'
+try {
+    Invoke-ProjectCommand -WorkingDirectory $backend -Command 'php' -Arguments @('artisan', 'schedule:list')
+} finally {
+    if ($null -eq $previousCacheStore) {
+        Remove-Item Env:CACHE_STORE -ErrorAction SilentlyContinue
+    } else {
+        $env:CACHE_STORE = $previousCacheStore
+    }
+}
 
 Invoke-ProjectCommand -WorkingDirectory $frontend -Command 'npm.cmd' -Arguments @('run', 'typecheck')
 Invoke-ProjectCommand -WorkingDirectory $frontend -Command 'npm.cmd' -Arguments @('run', 'build')

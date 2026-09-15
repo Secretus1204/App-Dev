@@ -84,6 +84,6 @@ Phase 8 is complete only when critical/high defects are closed, the staging rehe
 
 ## 6. Current automated evidence
 
-On 2026-08-22, `Verify-Project.ps1 -IncludeMobileBundle` passed Laravel formatting, 45 Laravel tests (273 assertions), scheduler registration, the Admin web type-check/production build, mobile type-check, and Android JavaScript bundle export.
+On 2026-09-15, `Verify-Project.ps1 -IncludeMobileBundle` passed Laravel formatting, 45 Laravel tests (274 assertions), scheduler registration, the Admin web type-check/production build, mobile type-check, and Android JavaScript bundle export. The scheduler-registration inspection uses an in-memory cache lock only for that static check, so it remains repeatable when local MySQL is stopped; it does not replace the required staging scheduler test.
 
 The Admin web build reports one non-blocking Vite size warning: the main JavaScript asset is about 780 KB before compression (about 220 KB gzip). Measure its real staging load time during UAT and add route/component code-splitting before release if it causes a material user delay.
