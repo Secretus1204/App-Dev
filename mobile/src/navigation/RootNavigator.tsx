@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/AuthContext';
 import { colors } from '../theme/tokens';
@@ -23,6 +24,11 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabsParamList>();
 
+// The visual tab content stays 58px high. The Android navigation-bar inset is
+// added below it so labels and icons never sit underneath Back/Home/Recents.
+const TAB_BAR_CONTENT_HEIGHT = 58;
+const MINIMUM_TAB_BAR_BOTTOM_PADDING = 8;
+
 const tabIcons: Record<keyof MainTabsParamList, keyof typeof Ionicons.glyphMap> = {
   Home: 'home-outline',
   Catalog: 'library-outline',
@@ -31,13 +37,25 @@ const tabIcons: Record<keyof MainTabsParamList, keyof typeof Ionicons.glyphMap> 
 };
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, MINIMUM_TAB_BAR_BOTTOM_PADDING);
+
   return (
     <Tabs.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: styles.tabBar,
+        // Supplying a fixed height/padding here would override React
+        // Navigation's Android safe-area values. Include the system inset in
+        // both values so the visible tab buttons remain above the OS bar.
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: TAB_BAR_CONTENT_HEIGHT + bottomPadding,
+            paddingBottom: bottomPadding,
+          },
+        ],
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({ color, size }) => <Ionicons name={tabIcons[route.name]} color={color} size={size} />,
       })}
@@ -108,7 +126,7 @@ export function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: { height: 66, paddingTop: 6, paddingBottom: 8, borderTopColor: colors.border },
+  tabBar: { paddingTop: 6, borderTopColor: colors.border },
   tabLabel: { fontSize: 11, fontWeight: '600' },
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, backgroundColor: colors.primary },
   splashTitle: { color: colors.white, fontSize: 26, fontWeight: '800' },

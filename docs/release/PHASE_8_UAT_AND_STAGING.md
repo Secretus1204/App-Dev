@@ -69,7 +69,7 @@ Use a new row for each test. A failed test must include a defect link, severity,
 | UAT-08 | Due reminders | Use a staging test loan near/past due date, run `library:sync-loans` twice, and confirm no duplicate notification is created. |  |  |  |
 | UAT-09 | Accounts and recovery | Profile name update is limited to allowed fields; password change/reset revokes existing tokens; inactive account access stops. |  |  |  |
 | UAT-10 | Reports and privacy | Report date filter/CSV export work for an Admin only; cells beginning with `=`, `+`, `-`, or `@` are exported as text. |  |  |  |
-| UAT-11 | Android member app | On a real Android device, member login, catalog, request, My Library, notifications, and profile work against staging. |  |  |  |
+| UAT-11 | Android member app | On a real Android device, member login, catalog, request, My Library, notifications, and profile work against staging; bottom-tab labels and icons remain above the Android Back/Home/Recents system navigation bar. |  |  |  |
 | UAT-12 | Accessibility/responsiveness | Admin web keyboard navigation, dialogs, labels, focus, contrast, and mobile-width layout are usable. |  |  |  |
 
 ## 5. Sign-off
