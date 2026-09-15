@@ -1,4 +1,4 @@
-# Pilipog Library Android App
+# RCJK Library Android App
 
 This is the React Native/Expo Android app for **Library Members**. It uses the same Laravel `/api/v1` API as the Admin web application; it contains no mock production data and introduces no mobile-only backend.
 

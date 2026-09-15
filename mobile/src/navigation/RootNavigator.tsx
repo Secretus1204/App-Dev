@@ -72,7 +72,7 @@ function Splash() {
   return (
     <View style={styles.splash}>
       <Ionicons name="library" size={64} color={colors.white} />
-      <Text style={styles.splashTitle}>Pilipog Library</Text>
+      <Text style={styles.splashTitle}>RCJK Library</Text>
       <ActivityIndicator color={colors.white} />
     </View>
   );

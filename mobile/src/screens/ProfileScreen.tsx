@@ -84,7 +84,7 @@ export function ProfileScreen(_: Props) {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>About</Text>
           <MenuItem icon="help-circle-outline" label="Library help" detail="Ask your librarian for borrowing assistance." />
-          <MenuItem icon="phone-portrait-outline" label="Pilipog Library" detail="Version 1.0.0" last />
+          <MenuItem icon="phone-portrait-outline" label="RCJK Library" detail="Version 1.0.0" last />
         </View>
         <Button label="Log out" variant="outline" onPress={confirmLogout} />
       </ScrollView>

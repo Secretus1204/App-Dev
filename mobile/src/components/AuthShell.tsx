@@ -19,7 +19,7 @@ export function AuthShell({
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.brand}>
             <View style={styles.logo}><Ionicons name="library" size={38} color={colors.white} /></View>
-            <Text style={styles.brandName}>Pilipog Library</Text>
+            <Text style={styles.brandName}>RCJK Library</Text>
             <Text style={styles.brandTagline}>Read. Learn. Grow.</Text>
           </View>
           <View style={styles.card}>
