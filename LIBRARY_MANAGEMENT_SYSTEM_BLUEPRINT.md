@@ -1434,6 +1434,101 @@ Each phase ends with a working, demonstrable increment. Build the Laravel module
 - Monitoring and ownership for incidents are documented.
 - No demo accounts or default passwords remain.
 
+### Phase 10 — Smart circulation, member reminders, and session security (planned)
+
+**Status:** Planned only. Do not run the QR migration, deploy this work, or issue a new APK until the library policy and staging plan below are approved.
+
+**Goal:** Improve the existing request-and-return workflow with practical QR-assisted circulation, overdue enforcement, member reminders, and a ten-minute mobile idle timeout. These are improvements to the current two-role system, not new roles or public self-service borrowing.
+
+#### Phase 10A — Policy and UX decisions
+
+- Confirm the standard loan period, maximum active loans, and whether the librarian may override the calculated due date.
+- Approve the overdue policy: mark loans overdue, block new borrowing/requests while an overdue loan exists, and restore eligibility after return.
+- Keep fines disabled unless RCJK formally approves a documented fine policy. A late-return restriction is sufficient for the MVP.
+- Confirm the ten-minute inactivity rule for the Android app. Display a warning at nine minutes, then log the member out at ten minutes without activity.
+- Approve the librarian workflow: scan or manually enter a member ID, choose Borrow or Return, scan/search copies, review details, then explicitly confirm the transaction.
+
+**Exit criteria**
+
+- Librarian and project owner approve the written loan, overdue, return, and session-timeout rules.
+- The team agrees that a QR code identifies an account/copy but never authorizes a transaction by itself.
+
+#### Phase 10B — QR identity and label activation
+
+- Add a unique `library_card_code` to every member and a unique `qr_code` to every physical book copy.
+- Backfill existing records only through a reviewed, backup-protected Laravel migration.
+- Display the member’s digital library card QR in the Android Profile screen.
+- Display a printable QR label for every physical book copy in the Admin Book Copies screen.
+- Keep manual member-ID and accession-number entry as a fallback for a lost phone, low battery, unreadable label, or camera failure.
+
+**Current source status:** The migration and UI code are present in the repository but intentionally unapplied. Running `php artisan migrate` activates the new fields. An Android rebuild is required before the mobile QR card appears in a new APK.
+
+**Exit criteria**
+
+- Existing and newly created member/copy records have distinct opaque QR values.
+- QR values contain no password, email address, loan history, or other personal information.
+- Admin can view a copy label; a member can display a library card after authenticated data loads.
+
+#### Phase 10C — Web-based circulation scanner
+
+- Add a dedicated Admin Circulation page with a laptop webcam/USB webcam QR scanner and manual-entry fields.
+- Borrow workflow: identify the member, validate eligibility, scan/search each copy, calculate a due date, then require the librarian to confirm.
+- Return workflow: scan/search the copy, show the active borrower and return condition, then require confirmation before recording the return.
+- Add API endpoints and tests for member-code lookup and copy-code lookup. Reuse the current transactional loan and return services rather than duplicating stock logic.
+- Log scanning and circulation confirmation events without storing camera frames or QR images.
+
+**Exit criteria**
+
+- A librarian can finish borrowing or returning with a webcam, while manual entry remains fully functional.
+- A scan never creates a loan or return without an explicit confirmation step.
+- Authorization, copy availability, overdue restrictions, and concurrency protections pass automated tests.
+
+#### Phase 10D — Overdue restrictions and notifications
+
+- Add an eligibility check that blocks a member with an overdue loan from submitting a new request or receiving a new loan.
+- Keep the current overdue synchronization and add clear Admin/Mobile messages explaining the restriction and how to resolve it.
+- Add Android device registration for Expo Push Tokens, protected storage, and token cleanup on logout or device replacement.
+- Send reminders three days before due date, on the due date, and after a loan becomes overdue. Record delivery attempts and retain the in-app notification as a fallback.
+- Use Expo Push Notifications with Firebase Cloud Messaging for Android. Both have no-cost options for a small school project; hosting the Laravel scheduler remains a deployment responsibility.
+
+**Exit criteria**
+
+- A member can see the overdue status and cannot submit/receive a new loan until the overdue copy is returned.
+- Due-date reminders work on a physical Android release build when the member grants notification permission.
+- Failed/denied push permission never blocks the underlying library workflow.
+
+#### Phase 10E — Ten-minute idle session timeout
+
+- Add a mobile foreground/activity timer that resets on member interaction and successful authenticated API activity.
+- At nine minutes, show a one-minute logout warning. At ten minutes, clear the local token and return to Login.
+- Add server-side enforcement using a tracked last-activity time/token check. The backend must reject an idle session even if the mobile timer fails or the app is modified.
+- Apply the same behavior to expired/unauthorized API responses and clear the local session safely.
+
+**Exit criteria**
+
+- A member who is inactive for ten minutes is logged out locally and receives an unauthorized response from the API if they attempt to continue with the expired session.
+- Active use continues the session; the timeout does not interrupt an in-progress API request.
+- Timeout behavior is tested on a physical Android device, including background/foreground transitions.
+
+#### Phase 10F — Staging acceptance and release
+
+- Run migration backup/restore rehearsal before QR activation.
+- Test member QR, copy QR, manual fallback, webcam fallback, borrow, return, overdue restriction, notification permission denied, and the ten-minute timeout.
+- Build a fresh signed Android release APK from the short build path only after the staging checks pass.
+- Update the librarian and member guides with QR circulation, overdue, and session-timeout instructions.
+
+**Implementation order**
+
+| Order | Change | Main users | Cost profile |
+|---|---|---|---|
+| 1 | Approve loan/overdue/timeout policy | Librarian and project owner | Free |
+| 2 | Apply QR migration and display cards/labels | Member and Admin | Free open-source libraries |
+| 3 | Add web circulation scanner and manual fallback | Librarian | Laptop webcam or optional USB webcam/scanner |
+| 4 | Enforce overdue restrictions | Member and Admin | Uses existing Laravel/MySQL stack |
+| 5 | Add Expo/FCM push reminders | Member | No-cost service tier for small usage; scheduler hosting must be available |
+| 6 | Enforce ten-minute idle logout | Member | Uses existing Laravel/Expo stack |
+| 7 | Staging UAT, APK rebuild, and guide updates | All users | Release activity |
+
 ---
 
 ## 12. Testing strategy
