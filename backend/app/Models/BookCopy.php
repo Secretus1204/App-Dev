@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class BookCopy extends Model
 {
@@ -25,6 +26,13 @@ class BookCopy extends Model
     protected function casts(): array
     {
         return ['status' => BookCopyStatus::class];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $copy): void {
+            $copy->qr_code ??= 'RCJK-COPY-'.Str::upper((string) Str::ulid());
+        });
     }
 
     public function book(): BelongsTo

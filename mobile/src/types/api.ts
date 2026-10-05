@@ -24,6 +24,7 @@ export interface User {
   id: number;
   name: string;
   member_id: string;
+  library_card_code: string | null;
   email: string;
   role: UserRole;
   status: UserStatus;

@@ -13,6 +13,11 @@ class UserResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'member_id' => $this->member_id,
+            // This opaque identifier is safe to encode in the member's QR
+            // library card. It never contains a password or email address.
+            'library_card_code' => $this->role->value === 'user'
+                ? $this->library_card_code
+                : null,
             'email' => $this->email,
             'role' => $this->role->value,
             'status' => $this->status->value,

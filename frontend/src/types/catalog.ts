@@ -16,6 +16,7 @@ export interface BookCopy {
   book_id: number
   accession_number: string
   barcode: string | null
+  qr_code: string
   status: BookCopyStatus
   condition_notes: string | null
   created_at: string

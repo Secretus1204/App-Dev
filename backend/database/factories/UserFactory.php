@@ -29,6 +29,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'member_id' => fake()->unique()->bothify('MEM-#####'),
+            'library_card_code' => 'RCJK-MEMBER-'.Str::upper((string) Str::ulid()),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, BookOpen, ChevronLeft, ChevronRight, Eye, Pencil, Plus, Search } from 'lucide-react'
+import { Archive, BookOpen, ChevronLeft, ChevronRight, Eye, Pencil, Plus, QrCode, Search } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { apiErrorMessage, assetUrl } from '@/api/client'
 import Badge from '@/components/ui/Badge'
@@ -332,6 +333,7 @@ export function BookDetails() {
   const updateCopy = useUpdateBookCopy()
   const archiveCopy = useSetBookCopyArchived()
   const [editingCopy, setEditingCopy] = useState<BookCopy | null | undefined>(undefined)
+  const [qrCopy, setQrCopy] = useState<BookCopy | null>(null)
   const [copyForm, setCopyForm] = useState<CopyFormState>(emptyCopyForm)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
@@ -401,6 +403,21 @@ export function BookDetails() {
           </div>
         </Modal>
       )}
+      {qrCopy && (
+        <Modal title="Book Copy QR Label" onClose={() => setQrCopy(null)} footer={<button onClick={() => setQrCopy(null)} className="px-4 py-2 bg-[#C72C41] text-white rounded-lg text-sm font-medium">Done</button>}>
+          <div className="text-center space-y-4">
+            <div className="inline-flex rounded-xl border border-[#D9D9D9] bg-white p-4">
+              <QRCodeSVG value={qrCopy.qr_code} size={220} level="M" includeMargin title={`QR code for ${qrCopy.accession_number}`} />
+            </div>
+            <div>
+              <p className="font-semibold text-[#1A1A2E]">{book.title}</p>
+              <p className="text-sm text-gray-500">Copy: {qrCopy.accession_number}</p>
+              <p className="mt-2 font-mono text-xs text-gray-500 break-all">{qrCopy.qr_code}</p>
+            </div>
+            <p className="text-xs text-gray-400">Print this label and attach it to this physical copy. The code identifies the copy only and contains no borrower data.</p>
+          </div>
+        </Modal>
+      )}
 
       <div className="max-w-5xl mx-auto space-y-5">
         {error && editingCopy === undefined && <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>}
@@ -436,11 +453,11 @@ export function BookDetails() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="bg-[#F5F5F5] text-xs text-gray-500"><th className="text-left px-5 py-3 font-medium">Accession Number</th><th className="text-left px-5 py-3 font-medium">Barcode</th><th className="text-left px-5 py-3 font-medium">Condition</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium">Actions</th></tr></thead>
+              <thead><tr className="bg-[#F5F5F5] text-xs text-gray-500"><th className="text-left px-5 py-3 font-medium">Accession Number</th><th className="text-left px-5 py-3 font-medium">QR Code</th><th className="text-left px-5 py-3 font-medium">Barcode</th><th className="text-left px-5 py-3 font-medium">Condition</th><th className="text-left px-5 py-3 font-medium">Status</th><th className="text-left px-5 py-3 font-medium">Actions</th></tr></thead>
               <tbody>{(copiesQuery.data ?? []).map((copy) => (
                 <tr key={copy.id} className={`border-t border-[#F5F5F5] ${copy.status === 'archived' ? 'opacity-60' : ''}`}>
-                  <td className="px-5 py-3 font-mono text-xs text-[#1A1A2E]">{copy.accession_number}</td><td className="px-5 py-3 text-gray-500">{copy.barcode ?? '—'}</td><td className="px-5 py-3 text-gray-500 max-w-xs">{copy.condition_notes ?? '—'}</td><td className="px-5 py-3"><Badge variant={copy.status} /></td>
-                  <td className="px-5 py-3"><div className="flex gap-2"><button disabled={['borrowed', 'archived'].includes(copy.status)} onClick={() => openCopyModal(copy)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-30" title="Edit"><Pencil size={14} /></button><button disabled={copy.status === 'borrowed'} onClick={() => void setCopyArchived(copy, copy.status !== 'archived')} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30" title={copy.status === 'archived' ? 'Restore' : 'Archive'}><Archive size={14} /></button></div></td>
+                  <td className="px-5 py-3 font-mono text-xs text-[#1A1A2E]">{copy.accession_number}</td><td className="px-5 py-3"><button onClick={() => setQrCopy(copy)} className="inline-flex items-center gap-1.5 font-mono text-xs text-blue-600 hover:text-blue-800" title="View QR label"><QrCode size={15} /> View label</button></td><td className="px-5 py-3 text-gray-500">{copy.barcode ?? '—'}</td><td className="px-5 py-3 text-gray-500 max-w-xs">{copy.condition_notes ?? '—'}</td><td className="px-5 py-3"><Badge variant={copy.status} /></td>
+                  <td className="px-5 py-3"><div className="flex gap-2"><button onClick={() => setQrCopy(copy)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg" title="View QR label"><QrCode size={14} /></button><button disabled={['borrowed', 'archived'].includes(copy.status)} onClick={() => openCopyModal(copy)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-30" title="Edit"><Pencil size={14} /></button><button disabled={copy.status === 'borrowed'} onClick={() => void setCopyArchived(copy, copy.status !== 'archived')} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30" title={copy.status === 'archived' ? 'Restore' : 'Archive'}><Archive size={14} /></button></div></td>
                 </tr>
               ))}</tbody>
             </table>

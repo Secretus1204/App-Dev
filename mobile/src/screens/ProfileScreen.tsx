@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { useAuth } from '../auth/AuthContext';
 import { Button } from '../components/Button';
@@ -55,6 +56,20 @@ export function ProfileScreen(_: Props) {
             <Text style={styles.member}>Member ID: {user.member_id}</Text>
           </View>
         </View>
+
+        {user.library_card_code ? (
+          <View style={styles.libraryCard}>
+            <View style={styles.libraryCardCopy}>
+              <Text style={styles.libraryCardEyebrow}>RCJK LIBRARY CARD</Text>
+              <Text style={styles.libraryCardTitle}>Present this code to the librarian</Text>
+              <Text style={styles.libraryCardHint}>The librarian scans it to find your member account during borrowing.</Text>
+              <Text selectable style={styles.libraryCardCode}>{user.library_card_code}</Text>
+            </View>
+            <View style={styles.qrSurface}>
+              <QRCode value={user.library_card_code} size={126} color={colors.text} backgroundColor={colors.white} />
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
@@ -116,6 +131,13 @@ const styles = StyleSheet.create({
   name: { color: colors.text, fontSize: 19, fontWeight: '800' },
   email: { color: colors.textMuted, fontSize: 13 },
   member: { color: colors.primaryDark, fontSize: 12, fontWeight: '700', marginTop: 3 },
+  libraryCard: { flexDirection: 'row', gap: spacing.md, alignItems: 'center', padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.primaryDark, ...shadow.card },
+  libraryCardCopy: { flex: 1, gap: spacing.xs },
+  libraryCardEyebrow: { color: '#FAD9DE', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  libraryCardTitle: { color: colors.white, fontSize: 17, fontWeight: '800', lineHeight: 23 },
+  libraryCardHint: { color: '#FDECEF', fontSize: 12, lineHeight: 17 },
+  libraryCardCode: { color: '#FAD9DE', fontSize: 10, fontWeight: '700', marginTop: spacing.xs },
+  qrSurface: { padding: 10, borderRadius: radius.md, backgroundColor: colors.white },
   card: { padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.white, ...shadow.card },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   sectionTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
