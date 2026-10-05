@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 import { authApi } from '../api/services';
 import { ApiError, setApiToken, setUnauthorizedHandler } from '../api/client';
+import { unregisterCurrentDevice } from '../notifications/pushNotifications';
 import type { User } from '../types/api';
 
 const TOKEN_KEY = 'library_access_token';
@@ -96,6 +97,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      // A shared phone must not continue receiving the previous member's
+      // loan reminders after they intentionally sign out.
+      await unregisterCurrentDevice().catch(() => undefined);
       await authApi.logout();
     } finally {
       await clearSession();

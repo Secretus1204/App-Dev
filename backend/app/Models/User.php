@@ -59,6 +59,7 @@ class User extends Authenticatable
             'status' => UserStatus::class,
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -87,6 +88,34 @@ class User extends Authenticatable
     public function loans(): HasMany
     {
         return $this->hasMany(Loan::class);
+    }
+
+    public function pushDevices(): HasMany
+    {
+        return $this->hasMany(PushDevice::class);
+    }
+
+    /**
+     * The defaults keep current members opted in to non-marketing library
+     * alerts. They can change them at any time from the Android app.
+     *
+     * @return array<string, bool>
+     */
+    public function notificationPreferences(): array
+    {
+        return array_replace([
+            'push_enabled' => true,
+            'due_soon_enabled' => true,
+            'overdue_enabled' => true,
+            'activity_enabled' => true,
+        ], $this->notification_preferences ?? []);
+    }
+
+    public function wantsPushNotification(string $preference): bool
+    {
+        $preferences = $this->notificationPreferences();
+
+        return $preferences['push_enabled'] && ($preferences[$preference] ?? true);
     }
 
     public function reviewedBorrowRequests(): HasMany

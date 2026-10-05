@@ -59,7 +59,10 @@ $excludedFiles = @(
 )
 
 Write-Host "Syncing mobile source to $destinationMobileRoot"
-& robocopy $sourceMobileRoot $destinationMobileRoot /E /COPY:DAT /DCOPY:DAT /R:2 /W:2 /XD $excludedDirectories /XF $excludedFiles | Out-Host
+# Do not pipe robocopy through another cmdlet: PowerShell would replace
+# $LASTEXITCODE with the pipeline command's status and could falsely report a
+# failed copy as successful.
+& robocopy $sourceMobileRoot $destinationMobileRoot /E /COPY:DAT /DCOPY:DAT /R:2 /W:2 /XD $excludedDirectories /XF $excludedFiles
 $robocopyExitCode = $LASTEXITCODE
 
 if ($robocopyExitCode -gt 7) {

@@ -11,6 +11,7 @@
       "supportsTablet": true
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#C72C41",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -22,6 +23,7 @@
     },
     "plugins": [
       "expo-secure-store",
+      "expo-notifications",
       [
         "expo-build-properties",
         {
@@ -35,6 +37,12 @@
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#C72C41"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "aaf3758e-0518-4e1e-ac1f-9e1b026d3cb4"
+      }
+    },
+    "owner": "astilcodex"
   }
 }

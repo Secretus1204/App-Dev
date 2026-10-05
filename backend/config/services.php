@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'expo' => [
+        // Keep this disabled until an Expo project ID is configured in the
+        // mobile build and the queue worker is running in the deployment.
+        'push_notifications_enabled' => filter_var(env('EXPO_PUSH_NOTIFICATIONS_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'push_url' => env('EXPO_PUSH_URL', 'https://exp.host/--/api/v2/push/send'),
+    ],
+
 ];

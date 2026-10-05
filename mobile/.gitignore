@@ -18,6 +18,12 @@ android/.kotlin/
 android/local.properties
 *.orig.*
 *.jks
+android/keystore.properties
+android/app/*.keystore
+# Firebase project configuration and FCM service-account keys are local-only.
+google-services.json
+android/app/google-services.json
+*service-account*.json
 *.p8
 *.p12
 *.key

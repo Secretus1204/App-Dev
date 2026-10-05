@@ -54,7 +54,7 @@ DB_PASSWORD=${{MySQL.MYSQLPASSWORD}}
 
 SESSION_DRIVER=database
 CACHE_STORE=database
-QUEUE_CONNECTION=sync
+QUEUE_CONNECTION=database
 FILESYSTEM_DISK=local
 MAIL_MAILER=log
 
@@ -68,6 +68,11 @@ LIBRARY_REQUIRE_MEMBER_APPROVAL=false
 LIBRARY_FIRST_ADMIN_NAME=RCJK Library Administrator
 LIBRARY_FIRST_ADMIN_EMAIL=replace-with-a-staging-only-admin-email
 LIBRARY_FIRST_ADMIN_PASSWORD=replace-with-a-strong-staging-password
+
+# Enable only after the Android release APK is configured with the matching
+# Expo/EAS project ID and the queue-worker service in step 5 is online.
+EXPO_PUSH_NOTIFICATIONS_ENABLED=false
+EXPO_PUSH_URL=https://exp.host/--/api/v2/push/send
 ```
 
 6. Deploy the service. When it succeeds, open **Settings** > **Networking** > **Generate Domain**. Copy the generated URL, for example `https://api-xxxx.up.railway.app`.
@@ -96,9 +101,11 @@ VITE_API_BASE_URL=https://your-api-domain.up.railway.app/api/v1
 
 The browser app sends bearer tokens rather than cookies, so no `SANCTUM_STATEFUL_DOMAINS` or shared session-cookie domain is required.
 
-## 5. Run the hourly loan scheduler
+## 5. Run the scheduler and queue worker
 
-The scheduled due-soon/overdue process still needs a long-running service.
+The scheduled due-soon/overdue process and Expo push sending run in separate
+long-running services. Database notifications remain available in the app even
+when push delivery is disabled or a device denies permission.
 
 1. Create another service named `scheduler` from the same repository and `staging` branch.
 2. Set **Root Directory** to `/backend`.
@@ -110,7 +117,34 @@ php artisan schedule:work
 
 4. Copy the same non-public Laravel and database variables from the `api` service. It needs the same `APP_KEY` and MySQL references, but it does not need a generated public domain.
 
-`QUEUE_CONNECTION=sync` is intentional for the current small deployment; no queue worker is needed while the app has no queued jobs. If queued jobs are introduced later, create a separate worker service using `php artisan queue:work` and switch the queue connection back to `database`.
+5. Create one more service named `queue-worker` from the same repository and branch. Set **Root Directory** to `/backend` and **Custom Start Command** to:
+
+```sh
+php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+```
+
+6. Copy the same Laravel/database variables to `queue-worker`, including `QUEUE_CONNECTION=database`. It does not need a public domain.
+
+The scheduler checks loans every 15 minutes. The worker delivers queued Expo
+messages and retries a failed request up to three times. Restart or redeploy
+both services whenever Laravel code or variables change.
+
+### Enable Expo push delivery
+
+1. Create or select an Expo/EAS project for the Android app and copy its
+   **Project ID**. This value is an identifier, not a secret.
+2. Put it in the mobile build environment before creating the release APK:
+
+```dotenv
+EXPO_PUBLIC_EAS_PROJECT_ID=your-expo-project-id
+```
+
+3. Install a new signed APK, sign in as a member, then open **Notifications**
+   and enable **Push notifications**. Android asks for permission; the member
+   can decline and still use the app normally.
+4. Once the worker is online and a physical device is registered, set
+   `EXPO_PUSH_NOTIFICATIONS_ENABLED=true` in the API and `queue-worker`
+   services, then redeploy both. Keep it `false` while testing the API only.
 
 ## 6. Verify staging before changing the mobile application
 
@@ -120,6 +154,10 @@ php artisan schedule:work
 4. Confirm the API health endpoint and web browser requests use HTTPS with no CORS errors.
 5. Do not upload important cover files in this staging setup: `FILESYSTEM_DISK=local` is ephemeral on Railway. Use object storage before production.
 6. Password-reset emails are not delivered while `MAIL_MAILER=log`; configure a real staging mail provider before accepting password-recovery testing.
+7. For push testing, grant notification permission on one physical Android
+   device, register it from the mobile Notifications screen, then set a test
+   loan due date within the reminder window. Confirm both an in-app record and
+   one device notification. Test a denied permission as well.
 
 ## 7. Produce a mobile build that works without Wi-Fi development tools
 
@@ -129,6 +167,7 @@ The current `app-debug.apk` requires Metro, even if the API is deployed. After t
 
 ```dotenv
 EXPO_PUBLIC_API_URL=https://your-api-domain.up.railway.app/api/v1
+EXPO_PUBLIC_EAS_PROJECT_ID=your-expo-project-id
 ```
 
 2. Synchronize the short Android build copy:

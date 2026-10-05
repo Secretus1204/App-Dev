@@ -802,6 +802,58 @@ paths:
       security: [{ bearerAuth: [] }]
       responses:
         '200': { description: Notifications marked read }
+  /notification-preferences:
+    get:
+      tags: [Operations]
+      summary: Get the authenticated member's push-notification preferences
+      operationId: getNotificationPreferences
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Notification preferences, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferencesResponse' } } } }
+    patch:
+      tags: [Operations]
+      summary: Update push-notification preferences
+      operationId: updateNotificationPreferences
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationPreferences'
+      responses:
+        '200': { description: Preferences updated, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferencesResponse' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /push-devices:
+    post:
+      tags: [Operations]
+      summary: Register the current Expo-enabled device for the authenticated account
+      operationId: registerPushDevice
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expo_push_token, platform]
+              properties:
+                expo_push_token: { type: string, maxLength: 255, example: ExponentPushToken[example-token] }
+                platform: { type: string, enum: [android, ios] }
+      responses:
+        '201': { description: Device registered, content: { application/json: { schema: { $ref: '#/components/schemas/PushDeviceResponse' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /push-devices/{pushDevice}:
+    delete:
+      tags: [Operations]
+      summary: Remove an owned device from push delivery
+      operationId: unregisterPushDevice
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: pushDevice, in: path, required: true, schema: { type: integer, format: int64 } }
+      responses:
+        '200': { description: Device removed }
+        '404': { $ref: '#/components/responses/NotFound' }
   /admin/dashboard:
     get:
       tags: [Operations]
@@ -1122,6 +1174,35 @@ components:
               required: [unread_count]
               properties:
                 unread_count: { type: integer, minimum: 0 }
+    NotificationPreferences:
+      type: object
+      properties:
+        push_enabled: { type: boolean, default: true }
+        due_soon_enabled: { type: boolean, default: true }
+        overdue_enabled: { type: boolean, default: true }
+        activity_enabled: { type: boolean, default: true }
+    NotificationPreferencesResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/NotificationPreferences' }
+    PushDevice:
+      type: object
+      required: [id, platform, is_enabled]
+      properties:
+        id: { type: integer, format: int64 }
+        platform: { type: string, enum: [android, ios] }
+        is_enabled: { type: boolean }
+        last_seen_at: { type: [string, 'null'], format: date-time }
+    PushDeviceResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, const: true }
+        message: { type: string }
+        data: { $ref: '#/components/schemas/PushDevice' }
     MonthlyActivity:
       type: object
       required: [month, year, borrowed, returned]

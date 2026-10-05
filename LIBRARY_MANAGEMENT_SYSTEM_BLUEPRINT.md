@@ -1434,9 +1434,9 @@ Each phase ends with a working, demonstrable increment. Build the Laravel module
 - Monitoring and ownership for incidents are documented.
 - No demo accounts or default passwords remain.
 
-### Phase 10 — Smart circulation, member reminders, and session security (planned)
+### Phase 10 — Smart circulation, member reminders, and session security (in progress)
 
-**Status:** Planned only. Do not run the QR migration, deploy this work, or issue a new APK until the library policy and staging plan below are approved.
+**Status:** QR labels and the optional Expo-push code path are implemented in source, but the new migrations are intentionally not yet applied or deployed. Web QR scanning, overdue-loan borrowing restrictions, and the ten-minute idle session timeout remain planned work.
 
 **Goal:** Improve the existing request-and-return workflow with practical QR-assisted circulation, overdue enforcement, member reminders, and a ten-minute mobile idle timeout. These are improvements to the current two-role system, not new roles or public self-service borrowing.
 
@@ -1490,6 +1490,8 @@ Each phase ends with a working, demonstrable increment. Build the Laravel module
 - Add Android device registration for Expo Push Tokens, protected storage, and token cleanup on logout or device replacement.
 - Send reminders three days before due date, on the due date, and after a loan becomes overdue. Record delivery attempts and retain the in-app notification as a fallback.
 - Use Expo Push Notifications with Firebase Cloud Messaging for Android. Both have no-cost options for a small school project; hosting the Laravel scheduler remains a deployment responsibility.
+
+**Current source status:** The Laravel API now accepts authenticated Android Expo-device registration, exposes member notification preferences, unregisters a device on mobile logout, and queues optional Expo messages for loan/activity notifications. The in-app notification inbox remains the fallback. The scheduler now checks loans every 15 minutes; a separate `queue:work` deployment is required to send Expo messages. Push delivery is feature-flagged off until the Expo/EAS project ID, migration, queue worker, and staging tests are ready. See `docs/guides/PUSH_NOTIFICATIONS.md` and `docs/release/RAILWAY_STAGING_DEPLOYMENT.md`.
 
 **Exit criteria**
 

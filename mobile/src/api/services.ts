@@ -6,6 +6,8 @@ import type {
   Category,
   LibraryNotification,
   Loan,
+  NotificationPreferences,
+  PushDevice,
   User,
 } from '../types/api';
 
@@ -60,4 +62,13 @@ export const notificationApi = {
   list: () => api.get<LibraryNotification[]>('/notifications?per_page=100'),
   read: (id: string) => api.post<LibraryNotification>(`/notifications/${id}/read`),
   readAll: () => api.post<{ updated: number }>('/notifications/read-all'),
+  preferences: () => api.get<NotificationPreferences>('/notification-preferences'),
+  updatePreferences: (body: Partial<NotificationPreferences>) =>
+    api.patch<NotificationPreferences>('/notification-preferences', body),
+};
+
+export const pushDeviceApi = {
+  register: (body: { expo_push_token: string; platform: 'android' | 'ios' }) =>
+    api.post<PushDevice>('/push-devices', body),
+  unregister: (id: number) => api.delete<null>(`/push-devices/${id}`),
 };

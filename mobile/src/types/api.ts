@@ -116,6 +116,20 @@ export interface LibraryNotification {
   created_at: string;
 }
 
+export interface NotificationPreferences {
+  push_enabled: boolean;
+  due_soon_enabled: boolean;
+  overdue_enabled: boolean;
+  activity_enabled: boolean;
+}
+
+export interface PushDevice {
+  id: number;
+  platform: 'android' | 'ios';
+  is_enabled: boolean;
+  last_seen_at: string | null;
+}
+
 export interface AuthPayload {
   user: User;
   token: string;

@@ -2,10 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as Notifications from 'expo-notifications';
+import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../auth/AuthContext';
+import { notificationApi } from '../api/services';
+import { registerCurrentDevice } from '../notifications/pushNotifications';
 import { colors } from '../theme/tokens';
 import { BookDetailScreen } from '../screens/BookDetailScreen';
 import { CatalogScreen } from '../screens/CatalogScreen';
@@ -78,6 +82,36 @@ function Splash() {
   );
 }
 
+/**
+ * Re-registers a known device token after login only if Android permission is
+ * already granted. It never opens a permission dialog on its own; the member
+ * explicitly enables alerts from the Notifications screen.
+ */
+function PushRegistration() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+
+    void (async () => {
+      try {
+        const [permission, preferences] = await Promise.all([
+          Notifications.getPermissionsAsync(),
+          notificationApi.preferences(),
+        ]);
+        if (permission.status === 'granted' && preferences.data.push_enabled) {
+          await registerCurrentDevice(false);
+        }
+      } catch {
+        // Registration is optional. A network or configuration issue must not
+        // block normal member access to the app.
+      }
+    })();
+  }, [user?.id]);
+
+  return null;
+}
+
 export function RootNavigator() {
   const { user, isRestoring } = useAuth();
   if (isRestoring) return <Splash />;
@@ -98,7 +132,9 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <>
+      <PushRegistration />
+      <NavigationContainer>
       {user ? (
         <RootStack.Navigator
           screenOptions={{
@@ -121,7 +157,8 @@ export function RootNavigator() {
           <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         </AuthStack.Navigator>
       )}
-    </NavigationContainer>
+      </NavigationContainer>
+    </>
   );
 }
 
